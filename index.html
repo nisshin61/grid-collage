@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>GridCraft — โปรแกรมจัดเรียงรูปภาพ Grid Collage</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              950: '#0a0b0e',
+              900: '#111318',
+              850: '#161920',
+              800: '#1c2029',
+              700: '#272c38',
+              600: '#353c4c',
+            },
+            accent: {
+              500: '#6366f1',
+              400: '#818cf8',
+              600: '#4f46e5',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap');
+
+    body {
+      font-family: 'Noto Sans Thai', 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #0a0b0e;
+      color: #f3f4f6;
+      overscroll-behavior: none;
+    }
+
+    /* Custom subtle scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #111318;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #272c38;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #353c4c;
+    }
+
+    /* Range slider styling */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px;
+      border-radius: 9999px;
+      background: #272c38;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 16px;
+      width: 16px;
+      border-radius: 9999px;
+      background: #818cf8;
+      border: 2px solid #ffffff;
+      margin-top: -5px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+      transition: transform 0.12s ease;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    /* Checkered workspace backdrop */
+    .workspace-bg {
+      background-color: #0d0f14;
+      background-image:
+        radial-gradient(#1f2430 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    canvas {
+      touch-action: none;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col select-none">
+
+  <!-- Top Header -->
+  <header class="h-14 shrink-0 bg-surface-900 border-b border-surface-700/70 px-4 flex items-center justify-between gap-3 z-20">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+        <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <rect x="3" y="3" width="8" height="8" rx="1.5"/>
+          <rect x="13" y="3" width="8" height="18" rx="1.5"/>
+          <rect x="3" y="13" width="8" height="8" rx="1.5"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-sm sm:text-base font-bold tracking-tight text-white leading-none">GridCraft</h1>
+        <p class="text-[11px] text-gray-400 hidden sm:block mt-0.5">สตูดิโอจัดเรียงภาพ Grid Collage</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button id="btnBatchUpload" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-800 hover:bg-surface-700 border border-surface-600/80 text-xs sm:text-sm font-medium text-gray-200 transition">
+        <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+        </svg>
+        <span>อัปโหลดหลายรูป</span>
+      </button>
+
+      <button id="btnClearAll" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-800 hover:bg-red-500/15 hover:text-red-400 hover:border-red-500/40 border border-surface-600/80 text-xs sm:text-sm font-medium text-gray-300 transition" title="ล้างรูปทั้งหมด">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+        </svg>
+        <span class="hidden sm:inline">ล้างทั้งหมด</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace + Sidebar -->
+  <div class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+
+    <!-- Center Workspace Canvas -->
+    <main id="workspaceContainer" class="flex-1 workspace-bg relative flex flex-col items-center justify-center p-3 sm:p-6 overflow-hidden min-h-[42vh]">
+      <!-- Top floating status pill -->
+      <div class="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-3 py-1 rounded-full bg-surface-900/90 backdrop-blur border border-surface-700/80 text-[11px] text-gray-300 shadow-lg pointer-events-none">
+        <span id="statusRatioBadge" class="font-semibold text-indigo-400">1:1</span>
+        <span class="text-surface-600">•</span>
+        <span id="statusLayoutBadge">2 รูป (ซ้าย-ขวา)</span>
+        <span class="text-surface-600 hidden sm:inline">•</span>
+        <span id="statusHint" class="hidden sm:inline text-gray-400">คลิกช่องเพื่อเพิ่มรูป หรือลากรูปมาวาง</span>
+      </div>
+
+      <!-- Swap Mode Banner -->
+      <div id="swapBanner" class="hidden absolute top-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-200 text-xs font-medium shadow-lg backdrop-blur">
+        <span>คลิกช่องปลายทางที่ต้องการสลับตำแหน่ง</span>
+        <button id="btnCancelSwap" class="px-2 py-0.5 rounded bg-amber-500/30 hover:bg-amber-500/50 text-white text-[11px]">ยกเลิก</button>
+      </div>
+
+      <!-- Canvas Wrapper -->
+      <div id="canvasFrame" class="relative flex items-center justify-center shadow-2xl shadow-black/70 rounded-sm transition-all duration-150">
+        <canvas id="collageCanvas" class="block rounded-sm"></canvas>
+      </div>
+
+      <!-- Quick Slot Floating Toolbar (appears when a slot with image is selected) -->
+      <div id="floatingSlotBar" class="hidden mt-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-surface-900/95 backdrop-blur border border-surface-700 shadow-xl z-10">
+        <button data-action="rotate" class="p-1.5 rounded-lg hover:bg-surface-700 text-gray-200 transition" title="หมุน 90°">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+        </button>
+        <button data-action="flip" class="p-1.5 rounded-lg hover:bg-surface-700 text-gray-200 transition" title="พลิกซ้าย-ขวา">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+          </svg>
+        </button>
+        <button data-action="swap" class="p-1.5 rounded-lg hover:bg-surface-700 text-gray-200 transition" title="สลับตำแหน่งกับช่องอื่น">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
+          </svg>
+        </button>
+        <button data-action="replace" class="p-1.5 rounded-lg hover:bg-surface-700 text-gray-200 transition" title="เปลี่ยนรูปภาพ">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+        </button>
+        <div class="w-px h-4 bg-surface-700 mx-0.5"></div>
+        <button data-action="delete" class="p-1.5 rounded-lg hover:bg-red-500/20 text-red-400 transition" title="ลบรูปออกจากช่อง">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </main>
+
+    <!-- Right / Bottom Control Panel -->
+    <aside class="w-full lg:w-[370px] xl:w-[400px] shrink-0 bg-surface-900 border-t lg:border-t-0 lg:border-l border-surface-700/70 flex flex-col max-h-[52vh] lg:max-h-none overflow-hidden z-10">
+
+      <!-- Mobile / Compact Section Tabs -->
+      <div class="grid grid-cols-4 border-b border-surface-700/70 bg-surface-950/50 text-xs font-medium shrink-0">
+        <button class="tab-btn py-2.5 text-center border-b-2 border-indigo-500 text-white bg-surface-800/40 transition" data-tab="layouts">เทมเพลต</button>
+        <button class="tab-btn py-2.5 text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200 transition" data-tab="style">สัดส่วน/ขอบ</button>
+        <button class="tab-btn py-2.5 text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200 transition" data-tab="slot">ปรับแต่งรูป</button>
+        <button class="tab-btn py-2.5 text-center border-b-2 border-transparent text-gray-400 hover:text-gray-200 transition" data-tab="export">ส่งออก</button>
+      </div>
+
+      <!-- Scrollable Controls Body -->
+      <div class="flex-1 overflow-y-auto p-4 space-y-5">
+
+        <!-- TAB 1: LAYOUTS -->
+        <section id="tab-layouts" class="tab-panel space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-400">จำนวนรูปภาพ</h2>
+            <div id="countFilterGroup" class="flex gap-1 bg-surface-950 p-1 rounded-lg border border-surface-700/60">
+              <button data-count="all" class="count-filter px-2 py-0.5 rounded text-xs font-medium bg-indigo-500 text-white">ทั้งหมด</button>
+              <button data-count="2" class="count-filter px-2 py-0.5 rounded text-xs font-medium text-gray-400 hover:text-white">2</button>
+              <button data-count="3" class="count-filter px-2 py-0.5 rounded text-xs font-medium text-gray-400 hover:text-white">3</button>
+              <button data-count="4" class="count-filter px-2 py-0.5 rounded text-xs font-medium text-gray-400 hover:text-white">4</button>
+              <button data-count="5" class="count-filter px-2 py-0.5 rounded text-xs font-medium text-gray-400 hover:text-white">5</button>
+              <button data-count="6" class="count-filter px-2 py-0.5 rounded text-xs font-medium text-gray-400 hover:text-white">6</button>
+            </div>
+          </div>
+
+          <div id="layoutGrid" class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 gap-2.5">
+            <!-- Populated dynamically with SVG previews -->
+          </div>
+        </section>
+
+        <!-- TAB 2: ASPECT RATIO & BORDER -->
+        <section id="tab-style" class="tab-panel hidden space-y-5">
+          <!-- Aspect Ratio -->
+          <div>
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2.5">สัดส่วนภาพ (Aspect Ratio)</h2>
+            <div id="ratioButtons" class="grid grid-cols-2 gap-2">
+              <button data-ratio="1:1" class="ratio-btn flex items-center gap-2.5 p-2.5 rounded-xl border border-indigo-500 bg-indigo-500/15 text-left transition">
+                <div class="w-5 h-5 border-2 border-indigo-400 rounded-sm shrink-0"></div>
+                <div>
+                  <div class="text-xs font-semibold text-white">1:1 จัตุรัส</div>
+                  <div class="text-[10px] text-gray-400">IG Post</div>
+                </div>
+              </button>
+              <button data-ratio="4:5" class="ratio-btn flex items-center gap-2.5 p-2.5 rounded-xl border border-surface-700 bg-surface-850 hover:border-surface-600 text-left transition">
+                <div class="w-4 h-5 border-2 border-gray-400 rounded-sm shrink-0 mx-0.5"></div>
+                <div>
+                  <div class="text-xs font-semibold text-gray-200">4:5 แนวตั้ง</div>
+                  <div class="text-[10px] text-gray-400">IG Portrait</div>
+                </div>
+              </button>
+              <button data-ratio="9:16" class="ratio-btn flex items-center gap-2.5 p-2.5 rounded-xl border border-surface-700 bg-surface-850 hover:border-surface-600 text-left transition">
+                <div class="w-3.5 h-6 border-2 border-gray-400 rounded-sm shrink-0 mx-1"></div>
+                <div>
+                  <div class="text-xs font-semibold text-gray-200">9:16 เต็มจอ</div>
+                  <div class="text-[10px] text-gray-400">Story / Reels</div>
+                </div>
+              </button>
+              <button data-ratio="16:9" class="ratio-btn flex items-center gap-2.5 p-2.5 rounded-xl border border-surface-700 bg-surface-850 hover:border-surface-600 text-left transition">
+                <div class="w-6 h-3.5 border-2 border-gray-400 rounded-sm shrink-0"></div>
+                <div>
+                  <div class="text-xs font-semibold text-gray-200">16:9 แนวนอน</div>
+                  <div class="text-[10px] text-gray-400">Desktop / Banner</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Spacing / Border Width -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-medium text-gray-300">ช่องไฟ / ความหนาขอบ</span>
+              <span id="spacingVal" class="font-mono text-indigo-400 font-semibold">12px</span>
+            </div>
+            <input id="spacingSlider" type="range" min="0" max="40" value="12" class="w-full" />
+          </div>
+
+          <!-- Border Radius -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-medium text-gray-300">ความโค้งมนของมุม</span>
+              <span id="radiusVal" class="font-mono text-indigo-400 font-semibold">8px</span>
+            </div>
+            <input id="radiusSlider" type="range" min="0" max="30" value="8" class="w-full" />
+          </div>
+
+          <!-- Background / Border Color -->
+          <div class="space-y-2.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-medium text-gray-300">สีพื้นหลัง / สีขอบ</span>
+              <span id="bgColorHex" class="font-mono text-gray-400 uppercase">#FFFFFF</span>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <button class="color-swatch w-7 h-7 rounded-full border-2 border-indigo-400 bg-white shadow" data-color="#ffffff" title="ขาว"></button>
+              <button class="color-swatch w-7 h-7 rounded-full border border-surface-600 bg-black shadow" data-color="#000000" title="ดำ"></button>
+              <button class="color-swatch w-7 h-7 rounded-full border border-surface-600 bg-gray-200 shadow" data-color="#e5e7eb" title="เทาอ่อน"></button>
+              <button class="color-swatch w-7 h-7 rounded-full border border-surface-600 bg-slate-800 shadow" data-color="#1e293b" title="เทาเข้ม"></button>
+              <button class="color-swatch w-7 h-7 rounded-full border border-surface-600 bg-amber-100 shadow" data-color="#fef3c7" title="ครีม"></button>
+              <button class="color-swatch w-7 h-7 rounded-full border border-surface-600 bg-rose-100 shadow" data-color="#ffe4e6" title="ชมพูพาสเทล"></button>
+              <label class="relative w-7 h-7 rounded-full overflow-hidden border border-surface-500 cursor-pointer flex items-center justify-center bg-gradient-to-tr from-pink-500 via-amber-400 to-cyan-400" title="เลือกสีอิสระ">
+                <input id="bgColorPicker" type="color" value="#ffffff" class="opacity-0 absolute inset-0 w-full h-full cursor-pointer" />
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 3: SELECTED SLOT CONTROLS -->
+        <section id="tab-slot" class="tab-panel hidden space-y-4">
+          <div id="slotEmptyNotice" class="p-5 rounded-xl bg-surface-850 border border-surface-700/70 text-center space-y-2">
+            <div class="w-10 h-10 mx-auto rounded-full bg-surface-800 flex items-center justify-center text-gray-400">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+            </div>
+            <p class="text-xs text-gray-300 font-medium">ยังไม่ได้เลือกรูปภาพ</p>
+            <p class="text-[11px] text-gray-500">คลิกที่ช่องที่มีรูปภาพบนแคนวาส เพื่อซูม หมุน พลิก หรือสลับตำแหน่ง</p>
+          </div>
+
+          <div id="slotControlsBox" class="hidden space-y-4">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-indigo-400">ช่องที่เลือก: <span id="selectedSlotLabel">#1</span></span>
+              <button id="btnResetSlot" class="text-[11px] text-gray-400 hover:text-white underline">รีเซ็ตตำแหน่ง</button>
+            </div>
+
+            <!-- Zoom Scale -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-medium text-gray-300">ซูมรูปภาพ (Zoom)</span>
+                <span id="zoomVal" class="font-mono text-indigo-400 font-semibold">100%</span>
+              </div>
+              <input id="zoomSlider" type="range" min="100" max="300" value="100" class="w-full" />
+              <p class="text-[11px] text-gray-500">ลากรูปบนแคนวาสเพื่อเลื่อนจุดโฟกัส หรือใช้ลูกกลิ้งเมาส์เพื่อซูม</p>
+            </div>
+
+            <!-- Action Grid -->
+            <div class="grid grid-cols-2 gap-2">
+              <button id="btnSlotRotate" class="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-surface-800 hover:bg-surface-700 border border-surface-700 text-xs font-medium text-gray-200 transition">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <span>หมุน 90°</span>
+              </button>
+
+              <button id="btnSlotFlip" class="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-surface-800 hover:bg-surface-700 border border-surface-700 text-xs font-medium text-gray-200 transition">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                </svg>
+                <span>พลิกซ้าย-ขวา</span>
+              </button>
+
+              <button id="btnSlotSwap" class="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-surface-800 hover:bg-surface-700 border border-surface-700 text-xs font-medium text-gray-200 transition">
+                <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
+                </svg>
+                <span>สลับช่อง</span>
+              </button>
+
+              <button id="btnSlotReplace" class="flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-surface-800 hover:bg-surface-700 border border-surface-700 text-xs font-medium text-gray-200 transition">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <span>เปลี่ยนรูป</span>
+              </button>
+            </div>
+
+            <button id="btnSlotDelete" class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-xs font-medium text-red-400 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+              </svg>
+              <span>ลบรูปออกจากช่องนี้</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- TAB 4: HIGH-RES EXPORT -->
+        <section id="tab-export" class="tab-panel hidden space-y-5">
+          <div>
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2.5">ความละเอียดไฟล์ (Resolution)</h2>
+            <div class="grid grid-cols-2 gap-2">
+              <button data-res="1080" class="res-btn p-2.5 rounded-xl border border-surface-700 bg-surface-850 hover:border-surface-600 text-left transition">
+                <div class="text-xs font-semibold text-gray-200">1080px</div>
+                <div class="text-[10px] text-gray-400">มาตรฐาน IG</div>
+              </button>
+              <button data-res="2160" class="res-btn p-2.5 rounded-xl border border-indigo-500 bg-indigo-500/15 text-left transition">
+                <div class="text-xs font-semibold text-white">2160px (HD+)</div>
+                <div class="text-[10px] text-indigo-300">คมชัดสูงสุด</div>
+              </button>
+            </div>
+            <p id="exportDimPreview" class="text-[11px] text-gray-400 mt-2">ขนาดไฟล์ส่งออก: 2160 × 2160 px</p>
+          </div>
+
+          <!-- JPG Quality Slider -->
+          <div class="space-y-2 p-3 rounded-xl bg-surface-850 border border-surface-700/70">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-medium text-gray-300">คุณภาพไฟล์ JPG</span>
+              <span id="jpgQualityVal" class="font-mono text-indigo-400 font-semibold">92%</span>
+            </div>
+            <input id="jpgQualitySlider" type="range" min="50" max="100" value="92" class="w-full" />
+          </div>
+
+          <!-- Download Buttons -->
+          <div class="space-y-2.5">
+            <button id="btnExportPng" class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-lg shadow-indigo-600/25 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              <span>บันทึกเป็น PNG (ไม่บีบอัด)</span>
+            </button>
+
+            <button id="btnExportJpg" class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-surface-800 hover:bg-surface-700 border border-surface-600 text-gray-100 text-sm font-semibold transition">
+              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              <span>บันทึกเป็น JPG (ไฟล์เล็ก)</span>
+            </button>
+          </div>
+        </section>
+
+      </div>
+    </aside>
+  </div>
+
+  <!-- Hidden File Inputs -->
+  <input id="singleFileInput" type="file" accept="image/*" class="hidden" />
+  <input id="batchFileInput" type="file" accept="image/*" multiple class="hidden" />
+
+  <script>
+    (() => {
+      'use strict';
+
+      // =========================================================================
+      // 1. LAYOUT DEFINITIONS (Normalized 0..1 coordinates)
+      // =========================================================================
+      const LAYOUTS = [
+        // 2 Photos
+        {
+          id: '2-lr',
+          count: 2,
+          name: '2 รูป (ซ้าย-ขวา)',
+          rects: [
+            { x: 0, y: 0, w: 0.5, h: 1 },
+            { x: 0.5, y: 0, w: 0.5, h: 1 },
+          ],
+        },
+        {
+          id: '2-tb',
+          count: 2,
+          name: '2 รูป (บน-ล่าง)',
+          rects: [
+            { x: 0, y: 0, w: 1, h: 0.5 },
+            { x: 0, y: 0.5, w: 1, h: 0.5 },
+          ],
+        },
+
+        // 3 Photos
+        {
+          id: '3-cols',
+          count: 3,
+          name: '3 คอลัมน์',
+          rects: [
+            { x: 0, y: 0, w: 1 / 3, h: 1 },
+            { x: 1 / 3, y: 0, w: 1 / 3, h: 1 },
+            { x: 2 / 3, y: 0, w: 1 / 3, h: 1 },
+          ],
+        },
+        {
+          id: '3-left-big',
+          count: 3,
+          name: 'ซ้ายใหญ่ 1 + ขวาย่อย 2',
+          rects: [
+            { x: 0, y: 0, w: 0.5, h: 1 },
+            { x: 0.5, y: 0, w: 0.5, h: 0.5 },
+            { x: 0.5, y: 0.5, w: 0.5, h: 0.5 },
+          ],
+        },
+        {
+          id: '3-top-big',
+          count: 3,
+          name: 'บนใหญ่ 1 + ล่างย่อย 2',
+          rects: [
+            { x: 0, y: 0, w: 1, h: 0.5 },
+            { x: 0, y: 0.5, w: 0.5, h: 0.5 },
+            { x: 0.5, y: 0.5, w: 0.5, h: 0.5 },
+          ],
+        },
+
+        // 4 Photos
+        {
+          id: '4-grid',
+          count: 4,
+          name: 'ตาราง 2×2',
+          rects: [
+            { x: 0, y: 0, w: 0.5, h: 0.5 },
+            { x: 0.5, y: 0, w: 0.5, h: 0.5 },
+            { x: 0, y: 0.5, w: 0.5, h: 0.5 },
+            { x: 0.5, y: 0.5, w: 0.5, h: 0.5 },
+          ],
+        },
+        {
+          id: '4-left-big',
+          count: 4,
+          name: 'ซ้ายใหญ่ 1 + ขวาย่อย 3',
+          rects: [
+            { x: 0, y: 0, w: 0.6, h: 1 },
+            { x: 0.6, y: 0, w: 0.4, h: 1 / 3 },
+            { x: 0.6, y: 1 / 3, w: 0.4, h: 1 / 3 },
+            { x: 0.6, y: 2 / 3, w: 0.4, h: 1 / 3 },
+          ],
+        },
+
+        // 5 Photos
+        {
+          id: '5-top2-bot3',
+          count: 5,
+          name: 'บน 2 + ล่าง 3',
+          rects: [
+            { x: 0, y: 0, w: 0.5, h: 0.5 },
+            { x: 0.5, y: 0, w: 0.5, h: 0.5 },
+            { x: 0, y: 0.5, w: 1 / 3, h: 0.5 },
+            { x: 1 / 3, y: 0.5, w: 1 / 3, h: 0.5 },
+            { x: 2 / 3, y: 0.5, w: 1 / 3, h: 0.5 },
+          ],
+        },
+        {
+          id: '5-left-big',
+          count: 5,
+          name: 'ซ้ายใหญ่ 1 + ขวา 4',
+          rects: [
+            { x: 0, y: 0, w: 0.5, h: 1 },
+            { x: 0.5, y: 0, w: 0.25, h: 0.5 },
+            { x: 0.75, y: 0, w: 0.25, h: 0.5 },
+            { x: 0.5, y: 0.5, w: 0.25, h: 0.5 },
+            { x: 0.75, y: 0.5, w: 0.25, h: 0.5 },
+          ],
+        },
+
+        // 6 Photos
+        {
+          id: '6-2x3',
+          count: 6,
+          name: 'ตาราง 2×3',
+          rects: [
+            { x: 0, y: 0, w: 1 / 3, h: 0.5 },
+            { x: 1 / 3, y: 0, w: 1 / 3, h: 0.5 },
+            { x: 2 / 3, y: 0, w: 1 / 3, h: 0.5 },
+            { x: 0, y: 0.5, w: 1 / 3, h: 0.5 },
+            { x: 1 / 3, y: 0.5, w: 1 / 3, h: 0.5 },
+            { x: 2 / 3, y: 0.5, w: 1 / 3, h: 0.5 },
+          ],
+        },
+        {
+          id: '6-3x2',
+          count: 6,
+          name: 'ตาราง 3×2',
+          rects: [
+            { x: 0, y: 0, w: 0.5, h: 1 / 3 },
+            { x: 0.5, y: 0, w: 0.5, h: 1 / 3 },
+            { x: 0, y: 1 / 3, w: 0.5, h: 1 / 3 },
+            { x: 0.5, y: 1 / 3, w: 0.5, h: 1 / 3 },
+            { x: 0, y: 2 / 3, w: 0.5, h: 1 / 3 },
+            { x: 0.5, y: 2 / 3, w: 0.5, h: 1 / 3 },
+          ],
+        },
+      ];
+
+      const ASPECT_RATIOS = {
+        '1:1': { w: 1, h: 1, label: '1:1' },
+        '4:5': { w: 4, h: 5, label: '4:5' },
+        '9:16': { w: 9, h: 16, label: '9:16' },
+        '16:9': { w: 16, h: 9, label: '16:9' },
+      };
+
+      // =========================================================================
+      // 2. APPLICATION STATE
+      // =========================================================================
+      function createEmptySlot() {
+        return {
+          img: null,
+          zoom: 1,       // 1..3
+          panX: 0,       // normalized -1..1 of maxPanX
+          panY: 0,       // normalized -1..1 of maxPanY
+          rotation: 0,   // 0, 90, 180, 270
+          flipH: false,
+        };
+      }
+
+      const state = {
+        layoutId: '2-lr',
+        countFilter: 'all',
+        aspectRatio: '1:1',
+        spacing: 12,      // 0..40 (in 1080px reference space)
+        radius: 8,        // 0..30 (in 1080px reference space)
+        bgColor: '#ffffff',
+        exportBaseWidth: 2160,
+        jpgQuality: 0.92,
+        slots: Array.from({ length: 6 }, createEmptySlot),
+        selectedSlot: -1,
+        swapSourceSlot: -1,
+        hoverSlot: -1,
+        dragOverSlot: -1,
+      };
+
+      // =========================================================================
+      // 3. DOM ELEMENTS
+      // =========================================================================
+      const canvas = document.getElementById('collageCanvas');
+      const ctx = canvas.getContext('2d');
+      const workspaceContainer = document.getElementById('workspaceContainer');
+      const layoutGrid = document.getElementById('layoutGrid');
+      const singleFileInput = document.getElementById('singleFileInput');
+      const batchFileInput = document.getElementById('batchFileInput');
+      const floatingSlotBar = document.getElementById('floatingSlotBar');
+      const swapBanner = document.getElementById('swapBanner');
+
+      let pendingUploadSlot = -1;
+      let previewWidth = 500;
+      let previewHeight = 500;
+
+      // =========================================================================
+      // 4. GEOMETRY & MATH HELPERS
+      // =========================================================================
+      function getCurrentLayout() {
+        return LAYOUTS.find((l) => l.id === state.layoutId) || LAYOUTS[0];
+      }
+
+      function getExportDimensions() {
+        const ar = ASPECT_RATIOS[state.aspectRatio];
+        const base = state.exportBaseWidth;
+        if (ar.w >= ar.h) {
+          return { width: base, height: Math.round((base * ar.h) / ar.w) };
+        }
+        // For portrait (4:5, 9:16), keep width at base (1080 or 2160) so IG portrait/story is full res
+        return { width: base, height: Math.round((base * ar.h) / ar.w) };
+      }
+
+      function computeSlotPixelRects(canvasW, canvasH, spacingPx) {
+        const layout = getCurrentLayout();
+        return layout.rects.map((r) => {
+          const x = spacingPx + r.x * (canvasW - spacingPx);
+          const y = spacingPx + r.y * (canvasH - spacingPx);
+          const w = Math.max(4, r.w * (canvasW - spacingPx) - spacingPx);
+          const h = Math.max(4, r.h * (canvasH - spacingPx) - spacingPx);
+          return { x, y, w, h };
+        });
+      }
+
+      function getImageTransformMetrics(img, slotState, rect) {
+        const isRotatedOdd = slotState.rotation % 180 !== 0;
+        const effW = isRotatedOdd ? img.naturalHeight : img.naturalWidth;
+        const effH = isRotatedOdd ? img.naturalWidth : img.naturalHeight;
+
+        const coverScale = Math.max(rect.w / effW, rect.h / effH);
+        const finalScale = coverScale * slotState.zoom;
+
+        const renderedW = effW * finalScale;
+        const renderedH = effH * finalScale;
+
+        const maxPanX = Math.max(0, (renderedW - rect.w) / 2);
+        const maxPanY = Math.max(0, (renderedH - rect.h) / 2);
+
+        return { finalScale, maxPanX, maxPanY };
+      }
+
+      function clamp(val, min, max) {
+        return Math.max(min, Math.min(max, val));
+      }
+
+      // =========================================================================
+      // 5. CANVAS RENDERING (PREVIEW & EXPORT)
+      // =========================================================================
+      function roundedRectPath(targetCtx, x, y, w, h, r) {
+        const radius = Math.min(r, w / 2, h / 2);
+        targetCtx.beginPath();
+        if (radius <= 0) {
+          targetCtx.rect(x, y, w, h);
+        } else {
+          targetCtx.moveTo(x + radius, y);
+          targetCtx.arcTo(x + w, y, x + w, y + h, radius);
+          targetCtx.arcTo(x + w, y + h, x, y + h, radius);
+          targetCtx.arcTo(x, y + h, x, y, radius);
+          targetCtx.arcTo(x, y, x + w, y, radius);
+          targetCtx.closePath();
+        }
+      }
+
+      function renderCollageToContext(targetCtx, canvasW, canvasH, isExport = false) {
+        // Scale spacing & radius proportionally relative to 1080px reference width
+        const scaleFactor = canvasW / 1080;
+        const spacingPx = state.spacing * scaleFactor;
+        const radiusPx = state.radius * scaleFactor;
+
+        // Fill background
+        targetCtx.fillStyle = state.bgColor;
+        targetCtx.fillRect(0, 0, canvasW, canvasH);
+
+        const rects = computeSlotPixelRects(canvasW, canvasH, spacingPx);
+
+        rects.forEach((rect, idx) => {
+          const slot = state.slots[idx];
+
+          targetCtx.save();
+          roundedRectPath(targetCtx, rect.x, rect.y, rect.w, rect.h, radiusPx);
+          targetCtx.clip();
+
+          if (slot && slot.img) {
+            const { finalScale, maxPanX, maxPanY } = getImageTransformMetrics(slot.img, slot, rect);
+            const offsetX = slot.panX * maxPanX;
+            const offsetY = slot.panY * maxPanY;
+
+            const cx = rect.x + rect.w / 2 + offsetX;
+            const cy = rect.y + rect.h / 2 + offsetY;
+
+            targetCtx.translate(cx, cy);
+            targetCtx.rotate((slot.rotation * Math.PI) / 180);
+            targetCtx.scale(slot.flipH ? -1 : 1, 1);
+
+            const drawW = slot.img.naturalWidth * finalScale;
+            const drawH = slot.img.naturalHeight * finalScale;
+            targetCtx.drawImage(slot.img, -drawW / 2, -drawH / 2, drawW, drawH);
+          } else if (!isExport) {
+            // Empty slot placeholder (only in interactive preview)
+            const isDragOver = state.dragOverSlot === idx;
+            targetCtx.fillStyle = isDragOver ? '#2b3245' : '#1b1f29';
+            targetCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
+
+            // Subtle dashed inner border
+            targetCtx.strokeStyle = isDragOver ? '#818cf8' : '#353c4c';
+            targetCtx.lineWidth = 2;
+            targetCtx.setLineDash([6, 5]);
+            roundedRectPath(targetCtx, rect.x + 6, rect.y + 6, Math.max(0, rect.w - 12), Math.max(0, rect.h - 12), Math.max(0, radiusPx - 4));
+            targetCtx.stroke();
+            targetCtx.setLineDash([]);
+
+            // Plus icon & label
+            const cx = rect.x + rect.w / 2;
+            const cy = rect.y + rect.h / 2;
+            const iconSize = Math.min(18, Math.min(rect.w, rect.h) * 0.16);
+
+            targetCtx.strokeStyle = isDragOver ? '#a5b4fc' : '#6b7280';
+            targetCtx.lineWidth = 2.2;
+            targetCtx.lineCap = 'round';
+            targetCtx.beginPath();
+            targetCtx.moveTo(cx - iconSize / 2, cy - 6);
+            targetCtx.lineTo(cx + iconSize / 2, cy - 6);
+            targetCtx.moveTo(cx, cy - 6 - iconSize / 2);
+            targetCtx.lineTo(cx, cy - 6 + iconSize / 2);
+            targetCtx.stroke();
+
+            if (rect.w > 70 && rect.h > 70) {
+              targetCtx.fillStyle = isDragOver ? '#c7d2fe' : '#9ca3af';
+              targetCtx.font = '500 12px "Noto Sans Thai", Inter, sans-serif';
+              targetCtx.textAlign = 'center';
+              targetCtx.textBaseline = 'top';
+              targetCtx.fillText(`ช่อง #${idx + 1}`, cx, cy + 8);
+            }
+          }
+
+          targetCtx.restore();
+
+          // Interactive selection / swap / hover outline (preview only)
+          if (!isExport) {
+            const isSelected = state.selectedSlot === idx;
+            const isSwapSource = state.swapSourceSlot === idx;
+            const isHovered = state.hoverSlot === idx;
+
+            if (isSwapSource || isSelected || isHovered) {
+              targetCtx.save();
+              roundedRectPath(targetCtx, rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2, radiusPx);
+              targetCtx.lineWidth = isSwapSource ? 3.5 : isSelected ? 3 : 1.5;
+              targetCtx.strokeStyle = isSwapSource
+                ? '#f59e0b'
+                : isSelected
+                  ? '#6366f1'
+                  : 'rgba(129, 140, 248, 0.55)';
+              targetCtx.stroke();
+              targetCtx.restore();
+            }
+          }
+        });
+      }
+
+      function resizeAndRenderPreview() {
+        const padX = window.innerWidth < 640 ? 24 : 56;
+        const padY = window.innerWidth < 640 ? 92 : 112;
+        const availW = Math.max(180, workspaceContainer.clientWidth - padX);
+        const availH = Math.max(180, workspaceContainer.clientHeight - padY);
+
+        const ar = ASPECT_RATIOS[state.aspectRatio];
+        const ratio = ar.w / ar.h;
+
+        let w = availW;
+        let h = w / ratio;
+        if (h > availH) {
+          h = availH;
+          w = h * ratio;
+        }
+
+        previewWidth = Math.floor(w);
+        previewHeight = Math.floor(h);
+
+        const dpr = window.devicePixelRatio || 1;
+        canvas.style.width = `${previewWidth}px`;
+        canvas.style.height = `${previewHeight}px`;
+        canvas.width = Math.floor(previewWidth * dpr);
+        canvas.height = Math.floor(previewHeight * dpr);
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        renderCollageToContext(ctx, previewWidth, previewHeight, false);
+      }
+
+      // =========================================================================
+      // 6. IMAGE LOADING (FILE / DRAG-AND-DROP) - ZERO CORS ISSUES
+      // =========================================================================
+      function loadImageFile(file) {
+        return new Promise((resolve, reject) => {
+          if (!file || !file.type.startsWith('image/')) {
+            reject(new Error('ไม่ใช่ไฟล์รูปภาพ'));
+            return;
+          }
+          const url = URL.createObjectURL(file);
+          const img = new Image();
+          img.onload = () => {
+            resolve(img);
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('ไม่สามารถโหลดรูปภาพได้'));
+          };
+          img.src = url;
+        });
+      }
+
+      async function assignFilesToSlots(files, startSlot = 0) {
+        const layout = getCurrentLayout();
+        const imageFiles = Array.from(files).filter((f) => f.type.startsWith('image/'));
+        if (imageFiles.length === 0) return;
+
+        let targetIdx = startSlot;
+        for (const file of imageFiles) {
+          if (targetIdx >= layout.count) break;
+          try {
+            const img = await loadImageFile(file);
+            state.slots[targetIdx] = {
+              img,
+              zoom: 1,
+              panX: 0,
+              panY: 0,
+              rotation: 0,
+              flipH: false,
+            };
+            state.selectedSlot = targetIdx;
+          } catch (err) {
+            console.warn(err);
+          }
+          targetIdx++;
+        }
+        syncSlotControlsUI();
+        resizeAndRenderPreview();
+      }
+
+      // =========================================================================
+      // 7. CANVAS INTERACTION (CLICK, PAN, WHEEL ZOOM, DRAG & DROP)
+      // =========================================================================
+      function getCanvasPoint(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: clientX - rect.left,
+          y: clientY - rect.top,
+        };
+      }
+
+      function hitTestSlot(px, py) {
+        const scaleFactor = previewWidth / 1080;
+        const rects = computeSlotPixelRects(previewWidth, previewHeight, state.spacing * scaleFactor);
+        for (let i = 0; i < rects.length; i++) {
+          const r = rects[i];
+          if (px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h) {
+            return { index: i, rect: r };
+          }
+        }
+        return null;
+      }
+
+      let pointerState = {
+        active: false,
+        slotIdx: -1,
+        rect: null,
+        startX: 0,
+        startY: 0,
+        lastX: 0,
+        lastY: 0,
+        moved: false,
+      };
+
+      canvas.addEventListener('pointerdown', (e) => {
+        const pt = getCanvasPoint(e.clientX, e.clientY);
+        const hit = hitTestSlot(pt.x, pt.y);
+        if (!hit) return;
+
+        // Handle Swap Mode
+        if (state.swapSourceSlot !== -1) {
+          if (state.swapSourceSlot !== hit.index) {
+            const temp = state.slots[state.swapSourceSlot];
+            state.slots[state.swapSourceSlot] = state.slots[hit.index];
+            state.slots[hit.index] = temp;
+            state.selectedSlot = hit.index;
+          }
+          cancelSwapMode();
+          syncSlotControlsUI();
+          resizeAndRenderPreview();
+          return;
+        }
+
+        state.selectedSlot = hit.index;
+        syncSlotControlsUI();
+        resizeAndRenderPreview();
+
+        const slot = state.slots[hit.index];
+        if (slot && slot.img) {
+          pointerState = {
+            active: true,
+            slotIdx: hit.index,
+            rect: hit.rect,
+            startX: pt.x,
+            startY: pt.y,
+            lastX: pt.x,
+            lastY: pt.y,
+            moved: false,
+          };
+          canvas.setPointerCapture(e.pointerId);
+          canvas.style.cursor = 'grabbing';
+        } else {
+          // Empty slot clicked -> open file picker
+          pendingUploadSlot = hit.index;
+          singleFileInput.value = '';
+          singleFileInput.click();
+        }
+      });
+
+      canvas.addEventListener('pointermove', (e) => {
+        const pt = getCanvasPoint(e.clientX, e.clientY);
+
+        if (pointerState.active) {
+          const dx = pt.x - pointerState.lastX;
+          const dy = pt.y - pointerState.lastY;
+          pointerState.lastX = pt.x;
+          pointerState.lastY = pt.y;
+
+          if (Math.hypot(pt.x - pointerState.startX, pt.y - pointerState.startY) > 3) {
+            pointerState.moved = true;
+          }
+
+          const slot = state.slots[pointerState.slotIdx];
+          if (slot && slot.img) {
+            const { maxPanX, maxPanY } = getImageTransformMetrics(slot.img, slot, pointerState.rect);
+            if (maxPanX > 0) {
+              slot.panX = clamp(slot.panX + dx / maxPanX, -1, 1);
+            }
+            if (maxPanY > 0) {
+              slot.panY = clamp(slot.panY + dy / maxPanY, -1, 1);
+            }
+            renderCollageToContext(ctx, previewWidth, previewHeight, false);
+          }
+          return;
+        }
+
+        // Hover highlight
+        const hit = hitTestSlot(pt.x, pt.y);
+        const nextHover = hit ? hit.index : -1;
+        if (nextHover !== state.hoverSlot) {
+          state.hoverSlot = nextHover;
+          renderCollageToContext(ctx, previewWidth, previewHeight, false);
+        }
+        if (hit && state.slots[hit.index]?.img) {
+          canvas.style.cursor = state.swapSourceSlot !== -1 ? 'alias' : 'grab';
+        } else if (hit) {
+          canvas.style.cursor = 'pointer';
+        } else {
+          canvas.style.cursor = 'default';
+        }
+      });
+
+      canvas.addEventListener('pointerup', (e) => {
+        if (pointerState.active) {
+          pointerState.active = false;
+          try { canvas.releasePointerCapture(e.pointerId); } catch {}
+          canvas.style.cursor = 'grab';
+        }
+      });
+
+      canvas.addEventListener('pointerleave', () => {
+        if (!pointerState.active && state.hoverSlot !== -1) {
+          state.hoverSlot = -1;
+          renderCollageToContext(ctx, previewWidth, previewHeight, false);
+        }
+      });
+
+      // Mouse wheel zoom on hovered slot
+      canvas.addEventListener('wheel', (e) => {
+        const pt = getCanvasPoint(e.clientX, e.clientY);
+        const hit = hitTestSlot(pt.x, pt.y);
+        if (!hit) return;
+
+        const slot = state.slots[hit.index];
+        if (!slot || !slot.img) return;
+
+        e.preventDefault();
+        state.selectedSlot = hit.index;
+        const delta = e.deltaY < 0 ? 0.1 : -0.1;
+        slot.zoom = clamp(Math.round((slot.zoom + delta) * 100) / 100, 1, 3);
+        syncSlotControlsUI();
+        renderCollageToContext(ctx, previewWidth, previewHeight, false);
+      }, { passive: false });
+
+      // Drag & Drop files directly onto slots
+      canvas.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const pt = getCanvasPoint(e.clientX, e.clientY);
+        const hit = hitTestSlot(pt.x, pt.y);
+        const idx = hit ? hit.index : -1;
+        if (idx !== state.dragOverSlot) {
+          state.dragOverSlot = idx;
+          renderCollageToContext(ctx, previewWidth, previewHeight, false);
+        }
+      });
+
+      canvas.addEventListener('dragleave', () => {
+        if (state.dragOverSlot !== -1) {
+          state.dragOverSlot = -1;
+          renderCollageToContext(ctx, previewWidth, previewHeight, false);
+        }
+      });
+
+      canvas.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        const pt = getCanvasPoint(e.clientX, e.clientY);
+        const hit = hitTestSlot(pt.x, pt.y);
+        state.dragOverSlot = -1;
+        const startSlot = hit ? hit.index : 0;
+        if (e.dataTransfer?.files?.length) {
+          await assignFilesToSlots(e.dataTransfer.files, startSlot);
+        } else {
+          renderCollageToContext(ctx, previewWidth, previewHeight, false);
+        }
+      });
+
+      // =========================================================================
+      // 8. UI RENDERING & EVENT BINDINGS
+      // =========================================================================
+      function renderLayoutThumbnails() {
+        layoutGrid.innerHTML = '';
+        const filtered = state.countFilter === 'all'
+          ? LAYOUTS
+          : LAYOUTS.filter((l) => l.count === Number(state.countFilter));
+
+        filtered.forEach((layout) => {
+          const isActive = layout.id === state.layoutId;
+          const btn = document.createElement('button');
+          btn.className = `group flex flex-col items-center gap-1.5 p-2 rounded-xl border transition ${
+            isActive
+              ? 'border-indigo-500 bg-indigo-500/15 shadow-sm shadow-indigo-500/20'
+              : 'border-surface-700 bg-surface-850 hover:border-surface-600 hover:bg-surface-800'
+          }`;
+
+          // Build SVG thumbnail
+          const gap = 3;
+          const size = 48;
+          const rectsSvg = layout.rects
+            .map((r) => {
+              const x = gap + r.x * (size - gap);
+              const y = gap + r.y * (size - gap);
+              const w = Math.max(2, r.w * (size - gap) - gap);
+              const h = Math.max(2, r.h * (size - gap) - gap);
+              return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${isActive ? '#818cf8' : '#4b5563'}" class="group-hover:fill-indigo-400 transition-colors" />`;
+            })
+            .join('');
+
+          btn.innerHTML = `
+            <svg viewBox="0 0 ${size} ${size}" class="w-11 h-11 rounded bg-surface-950/90 border border-surface-700/70">
+              ${rectsSvg}
+            </svg>
+            <span class="text-[10px] leading-tight text-center ${isActive ? 'text-white font-semibold' : 'text-gray-400'}">${layout.name}</span>
+          `;
+
+          btn.addEventListener('click', () => {
+            state.layoutId = layout.id;
+            if (state.selectedSlot >= layout.count) {
+              state.selectedSlot = -1;
+            }
+            cancelSwapMode();
+            document.getElementById('statusLayoutBadge').textContent = layout.name;
+            renderLayoutThumbnails();
+            syncSlotControlsUI();
+            resizeAndRenderPreview();
+          });
+
+          layoutGrid.appendChild(btn);
+        });
+      }
+
+      function syncSlotControlsUI() {
+        const idx = state.selectedSlot;
+        const layout = getCurrentLayout();
+        const slot = idx >= 0 && idx < layout.count ? state.slots[idx] : null;
+        const hasImg = Boolean(slot && slot.img);
+
+        const emptyNotice = document.getElementById('slotEmptyNotice');
+        const controlsBox = document.getElementById('slotControlsBox');
+
+        if (hasImg) {
+          emptyNotice.classList.add('hidden');
+          controlsBox.classList.remove('hidden');
+          floatingSlotBar.classList.remove('hidden');
+
+          document.getElementById('selectedSlotLabel').textContent = `#${idx + 1}`;
+          const zoomPct = Math.round(slot.zoom * 100);
+          document.getElementById('zoomSlider').value = zoomPct;
+          document.getElementById('zoomVal').textContent = `${zoomPct}%`;
+        } else {
+          emptyNotice.classList.remove('hidden');
+          controlsBox.classList.add('hidden');
+          floatingSlotBar.classList.add('hidden');
+        }
+      }
+
+      function switchTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach((btn) => {
+          const active = btn.dataset.tab === tabName;
+          btn.classList.toggle('border-indigo-500', active);
+          btn.classList.toggle('text-white', active);
+          btn.classList.toggle('bg-surface-800/40', active);
+          btn.classList.toggle('border-transparent', !active);
+          btn.classList.toggle('text-gray-400', !active);
+        });
+        document.querySelectorAll('.tab-panel').forEach((panel) => {
+          panel.classList.toggle('hidden', panel.id !== `tab-${tabName}`);
+        });
+      }
+
+      function cancelSwapMode() {
+        state.swapSourceSlot = -1;
+        swapBanner.classList.add('hidden');
+      }
+
+      function performSlotAction(action) {
+        const idx = state.selectedSlot;
+        if (idx < 0 || !state.slots[idx]?.img) return;
+        const slot = state.slots[idx];
+
+        switch (action) {
+          case 'rotate':
+            slot.rotation = (slot.rotation + 90) % 360;
+            break;
+          case 'flip':
+            slot.flipH = !slot.flipH;
+            break;
+          case 'swap':
+            state.swapSourceSlot = idx;
+            swapBanner.classList.remove('hidden');
+            break;
+          case 'replace':
+            pendingUploadSlot = idx;
+            singleFileInput.value = '';
+            singleFileInput.click();
+            return;
+          case 'delete':
+            state.slots[idx] = createEmptySlot();
+            state.selectedSlot = -1;
+            cancelSwapMode();
+            break;
+        }
+        syncSlotControlsUI();
+        resizeAndRenderPreview();
+      }
+
+      // Tabs
+      document.querySelectorAll('.tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+      });
+
+      // Count Filter
+      document.querySelectorAll('.count-filter').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.countFilter = btn.dataset.count;
+          document.querySelectorAll('.count-filter').forEach((b) => {
+            const active = b === btn;
+            b.classList.toggle('bg-indigo-500', active);
+            b.classList.toggle('text-white', active);
+            b.classList.toggle('text-gray-400', !active);
+          });
+          renderLayoutThumbnails();
+        });
+      });
+
+      // Aspect Ratio Buttons
+      document.querySelectorAll('.ratio-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.aspectRatio = btn.dataset.ratio;
+          document.querySelectorAll('.ratio-btn').forEach((b) => {
+            const active = b === btn;
+            b.classList.toggle('border-indigo-500', active);
+            b.classList.toggle('bg-indigo-500/15', active);
+            b.classList.toggle('border-surface-700', !active);
+            b.classList.toggle('bg-surface-850', !active);
+          });
+          document.getElementById('statusRatioBadge').textContent = state.aspectRatio;
+          updateExportDimLabel();
+          resizeAndRenderPreview();
+        });
+      });
+
+      // Spacing & Radius Sliders
+      document.getElementById('spacingSlider').addEventListener('input', (e) => {
+        state.spacing = Number(e.target.value);
+        document.getElementById('spacingVal').textContent = `${state.spacing}px`;
+        resizeAndRenderPreview();
+      });
+
+      document.getElementById('radiusSlider').addEventListener('input', (e) => {
+        state.radius = Number(e.target.value);
+        document.getElementById('radiusVal').textContent = `${state.radius}px`;
+        resizeAndRenderPreview();
+      });
+
+      // Background Color Swatches & Picker
+      function setBgColor(hex) {
+        state.bgColor = hex;
+        document.getElementById('bgColorHex').textContent = hex.toUpperCase();
+        document.getElementById('bgColorPicker').value = hex;
+        document.querySelectorAll('.color-swatch').forEach((sw) => {
+          const match = sw.dataset.color.toLowerCase() === hex.toLowerCase();
+          sw.classList.toggle('border-2', match);
+          sw.classList.toggle('border-indigo-400', match);
+          sw.classList.toggle('border', !match);
+          sw.classList.toggle('border-surface-600', !match);
+        });
+        resizeAndRenderPreview();
+      }
+
+      document.querySelectorAll('.color-swatch').forEach((sw) => {
+        sw.addEventListener('click', () => setBgColor(sw.dataset.color));
+      });
+      document.getElementById('bgColorPicker').addEventListener('input', (e) => setBgColor(e.target.value));
+
+      // Slot Controls
+      document.getElementById('zoomSlider').addEventListener('input', (e) => {
+        if (state.selectedSlot < 0 || !state.slots[state.selectedSlot]?.img) return;
+        const pct = Number(e.target.value);
+        state.slots[state.selectedSlot].zoom = pct / 100;
+        document.getElementById('zoomVal').textContent = `${pct}%`;
+        renderCollageToContext(ctx, previewWidth, previewHeight, false);
+      });
+
+      document.getElementById('btnResetSlot').addEventListener('click', () => {
+        if (state.selectedSlot < 0 || !state.slots[state.selectedSlot]?.img) return;
+        const slot = state.slots[state.selectedSlot];
+        slot.zoom = 1;
+        slot.panX = 0;
+        slot.panY = 0;
+        slot.rotation = 0;
+        slot.flipH = false;
+        syncSlotControlsUI();
+        resizeAndRenderPreview();
+      });
+
+      document.getElementById('btnSlotRotate').addEventListener('click', () => performSlotAction('rotate'));
+      document.getElementById('btnSlotFlip').addEventListener('click', () => performSlotAction('flip'));
+      document.getElementById('btnSlotSwap').addEventListener('click', () => performSlotAction('swap'));
+      document.getElementById('btnSlotReplace').addEventListener('click', () => performSlotAction('replace'));
+      document.getElementById('btnSlotDelete').addEventListener('click', () => performSlotAction('delete'));
+      document.getElementById('btnCancelSwap').addEventListener('click', () => {
+        cancelSwapMode();
+        resizeAndRenderPreview();
+      });
+
+      floatingSlotBar.querySelectorAll('button[data-action]').forEach((btn) => {
+        btn.addEventListener('click', () => performSlotAction(btn.dataset.action));
+      });
+
+      // File Inputs
+      singleFileInput.addEventListener('change', async (e) => {
+        if (e.target.files?.length && pendingUploadSlot >= 0) {
+          await assignFilesToSlots(e.target.files, pendingUploadSlot);
+        }
+        pendingUploadSlot = -1;
+      });
+
+      document.getElementById('btnBatchUpload').addEventListener('click', () => {
+        batchFileInput.value = '';
+        batchFileInput.click();
+      });
+
+      batchFileInput.addEventListener('change', async (e) => {
+        if (e.target.files?.length) {
+          await assignFilesToSlots(e.target.files, 0);
+        }
+      });
+
+      document.getElementById('btnClearAll').addEventListener('click', () => {
+        state.slots = Array.from({ length: 6 }, createEmptySlot);
+        state.selectedSlot = -1;
+        cancelSwapMode();
+        syncSlotControlsUI();
+        resizeAndRenderPreview();
+      });
+
+      // =========================================================================
+      // 9. HIGH-RESOLUTION EXPORT
+      // =========================================================================
+      function updateExportDimLabel() {
+        const { width, height } = getExportDimensions();
+        document.getElementById('exportDimPreview').textContent = `ขนาดไฟล์ส่งออก: ${width} × ${height} px`;
+      }
+
+      document.querySelectorAll('.res-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.exportBaseWidth = Number(btn.dataset.res);
+          document.querySelectorAll('.res-btn').forEach((b) => {
+            const active = b === btn;
+            b.classList.toggle('border-indigo-500', active);
+            b.classList.toggle('bg-indigo-500/15', active);
+            b.classList.toggle('border-surface-700', !active);
+            b.classList.toggle('bg-surface-850', !active);
+          });
+          updateExportDimLabel();
+        });
+      });
+
+      document.getElementById('jpgQualitySlider').addEventListener('input', (e) => {
+        const q = Number(e.target.value);
+        state.jpgQuality = q / 100;
+        document.getElementById('jpgQualityVal').textContent = `${q}%`;
+      });
+
+      function exportCollage(format) {
+        const { width, height } = getExportDimensions();
+        const offscreen = document.createElement('canvas');
+        offscreen.width = width;
+        offscreen.height = height;
+        const offCtx = offscreen.getContext('2d');
+
+        renderCollageToContext(offCtx, width, height, true);
+
+        const mime = format === 'png' ? 'image/png' : 'image/jpeg';
+        const quality = format === 'png' ? undefined : state.jpgQuality;
+        const ext = format === 'png' ? 'png' : 'jpg';
+
+        offscreen.toBlob(
+          (blob) => {
+            if (!blob) return;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+            a.href = url;
+            a.download = `gridcraft-collage-${timestamp}.${ext}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+          },
+          mime,
+          quality
+        );
+      }
+
+      document.getElementById('btnExportPng').addEventListener('click', () => exportCollage('png'));
+      document.getElementById('btnExportJpg').addEventListener('click', () => exportCollage('jpg'));
+
+      // =========================================================================
+      // 10. INITIALIZATION
+      // =========================================================================
+      window.addEventListener('resize', resizeAndRenderPreview);
+      renderLayoutThumbnails();
+      updateExportDimLabel();
+      syncSlotControlsUI();
+      resizeAndRenderPreview();
+    })();
+  </script>
+</body>
+</html>
